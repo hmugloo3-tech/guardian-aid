@@ -44,12 +44,16 @@ export function Header() {
               <span>Emergency: 1234</span>
             </a>
 
-            <Button variant="ghost" size="sm" className="hidden md:inline-flex">
-              Sign In
-            </Button>
-            <Button variant="hero" size="default" className="hidden sm:inline-flex">
-              Register as Donor
-            </Button>
+            <Link to="/auth">
+              <Button variant="ghost" size="sm" className="hidden md:inline-flex">
+                Sign In
+              </Button>
+            </Link>
+            <Link to="/register-donor">
+              <Button variant="hero" size="default" className="hidden sm:inline-flex">
+                Register as Donor
+              </Button>
+            </Link>
 
             {/* Mobile menu button */}
             <Button
@@ -84,12 +88,16 @@ export function Header() {
               About
             </MobileNavLink>
             <div className="flex flex-col gap-2 pt-3 mt-2 border-t border-border">
-              <Button variant="outline" className="w-full">
-                Sign In
-              </Button>
-              <Button variant="hero" className="w-full">
-                Register as Donor
-              </Button>
+              <Link to="/auth">
+                <Button variant="outline" className="w-full">
+                  Sign In
+                </Button>
+              </Link>
+              <Link to="/register-donor">
+                <Button variant="hero" className="w-full">
+                  Register as Donor
+                </Button>
+              </Link>
             </div>
           </nav>
         </div>
