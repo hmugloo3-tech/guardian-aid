@@ -2,15 +2,20 @@ import { Navigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useDonor } from "@/hooks/useDonor";
+import { useEmergencyRequests } from "@/hooks/useEmergencyRequests";
+import { useIsAdmin } from "@/hooks/useAdmin";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusIndicator } from "@/components/ui/status-indicator";
-import { Heart, LogOut, User, Droplets, MapPin, Phone, Calendar, Shield, Bell, Settings, Loader2 } from "lucide-react";
+import { AvailabilityDialog } from "@/components/donor/AvailabilityDialog";
+import { Heart, LogOut, User, Droplets, MapPin, Phone, Calendar, Shield, Bell, Settings, Loader2, Siren, AlertTriangle } from "lucide-react";
 
 export default function Dashboard() {
   const { user, isLoading: authLoading, signOut } = useAuth();
   const { data: profile, isLoading: profileLoading } = useProfile();
   const { data: donor, isLoading: donorLoading } = useDonor();
+  const { data: emergencies } = useEmergencyRequests();
+  const { data: isAdmin } = useIsAdmin();
 
   const isLoading = authLoading || profileLoading || donorLoading;
 
@@ -55,11 +60,22 @@ export default function Dashboard() {
           </Link>
 
           <div className="flex items-center gap-4">
+            <Link to="/emergency-request">
+              <Button variant="emergency" size="sm">
+                <Siren className="w-4 h-4" />
+                Request Blood
+              </Button>
+            </Link>
+            {isAdmin && (
+              <Link to="/admin">
+                <Button variant="outline" size="sm">
+                  <Shield className="w-4 h-4" />
+                  Admin
+                </Button>
+              </Link>
+            )}
             <Button variant="ghost" size="icon-sm">
               <Bell className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon-sm">
-              <Settings className="w-4 h-4" />
             </Button>
             <Button variant="outline" size="sm" onClick={handleSignOut}>
               <LogOut className="w-4 h-4" />
@@ -132,9 +148,7 @@ export default function Dashboard() {
 
               {/* Quick Actions */}
               <div className="mt-6 flex flex-wrap gap-3">
-                <Button variant="hero">
-                  Update Availability
-                </Button>
+                <AvailabilityDialog currentStatus={donor?.status || "available"} />
                 <Button variant="outline">
                   Edit Profile
                 </Button>
@@ -196,19 +210,64 @@ export default function Dashboard() {
           <Card className="lg:col-span-2 border-border/50">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <Bell className="w-4 h-4 text-primary" />
-                Recent Emergency Requests
+                <AlertTriangle className="w-4 h-4 text-primary" />
+                Active Emergency Requests
               </CardTitle>
               <CardDescription>
                 Matching requests for your blood type in your area
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <Bell className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                <p>No active emergency requests at the moment</p>
-                <p className="text-sm">You'll be notified when someone needs your help</p>
-              </div>
+              {emergencies && emergencies.filter(e => 
+                (e.status === 'pending' || e.status === 'active') && 
+                e.blood_type === donor?.blood_type
+              ).length > 0 ? (
+                <div className="space-y-3">
+                  {emergencies
+                    .filter(e => 
+                      (e.status === 'pending' || e.status === 'active') && 
+                      e.blood_type === donor?.blood_type
+                    )
+                    .slice(0, 3)
+                    .map(emergency => (
+                      <div 
+                        key={emergency.id}
+                        className="flex items-center justify-between p-4 bg-primary/5 border border-primary/20 rounded-xl"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-lg font-bold text-primary">
+                            {emergency.blood_type}
+                          </div>
+                          <div>
+                            <p className="font-medium">
+                              {emergency.units_needed} unit(s) needed
+                              <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
+                                emergency.urgency === 'critical' 
+                                  ? 'bg-primary/20 text-primary'
+                                  : 'bg-warning/20 text-warning'
+                              }`}>
+                                {emergency.urgency}
+                              </span>
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {emergency.hospital_name || 'Hospital not specified'} • {emergency.contact_phone}
+                            </p>
+                          </div>
+                        </div>
+                        <Button size="sm" variant="hero">
+                          <Phone className="w-4 h-4" />
+                          Respond
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Bell className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                  <p>No active emergency requests matching your blood type</p>
+                  <p className="text-sm">You'll be notified when someone needs your help</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
