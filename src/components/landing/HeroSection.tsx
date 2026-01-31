@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge-custom";
 import { ArrowRight, Heart, MapPin, Users, Zap, Shield } from "lucide-react";
@@ -53,15 +54,19 @@ export function HeroSection() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto animate-fade-in stagger-3">
-              <Button variant="emergency" size="xl" className="group">
-                <Heart className="w-5 h-5 fill-current" />
-                Request Emergency Blood
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </Button>
-              <Button variant="hero-outline" size="xl">
-                <Users className="w-5 h-5" />
-                Become a Donor
-              </Button>
+              <Link to="/emergency-request">
+                <Button variant="emergency" size="xl" className="group w-full sm:w-auto">
+                  <Heart className="w-5 h-5 fill-current" />
+                  Request Emergency Blood
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                </Button>
+              </Link>
+              <Link to="/register-donor">
+                <Button variant="hero-outline" size="xl" className="w-full sm:w-auto">
+                  <Users className="w-5 h-5" />
+                  Become a Donor
+                </Button>
+              </Link>
             </div>
 
             {/* Trust Stats */}
