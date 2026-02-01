@@ -95,7 +95,7 @@ export function useCreateEmergencyRequest() {
 
       if (error) throw error;
 
-      // Trigger notification to matching donors
+      // Trigger notification to matching donors (includes SMS/WhatsApp)
       try {
         await supabase.functions.invoke("notify-donors", {
           body: {
@@ -104,6 +104,7 @@ export function useCreateEmergencyRequest() {
             urgency: data.urgency,
             hospital_name: data.hospital_name,
             location_id: data.location_id,
+            contact_phone: data.contact_phone,
           },
         });
       } catch (notifyError) {

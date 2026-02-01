@@ -13,6 +13,68 @@ interface NotifyDonorsRequest {
   urgency: string;
   hospital_name?: string;
   location_id?: string;
+  contact_phone?: string;
+}
+
+async function sendSMSNotification(
+  to: string, 
+  message: string, 
+  channel: "sms" | "whatsapp" = "sms"
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
+    const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
+    const twilioPhoneNumber = Deno.env.get("TWILIO_PHONE_NUMBER");
+
+    if (!accountSid || !authToken || !twilioPhoneNumber) {
+      console.log("Twilio credentials not configured, skipping SMS");
+      return { success: false, error: "Twilio not configured" };
+    }
+
+    // Format phone number
+    let formattedTo = to.replace(/\D/g, "");
+    if (!formattedTo.startsWith("91")) {
+      formattedTo = `91${formattedTo}`;
+    }
+    formattedTo = `+${formattedTo}`;
+
+    const fromNumber = channel === "whatsapp" 
+      ? `whatsapp:${twilioPhoneNumber}` 
+      : twilioPhoneNumber;
+    const toNumber = channel === "whatsapp" 
+      ? `whatsapp:${formattedTo}` 
+      : formattedTo;
+
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+    const credentials = btoa(`${accountSid}:${authToken}`);
+
+    const formData = new URLSearchParams();
+    formData.append("To", toNumber);
+    formData.append("From", fromNumber);
+    formData.append("Body", message);
+
+    const response = await fetch(twilioUrl, {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${credentials}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: formData.toString(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      console.error("Twilio error:", result);
+      return { success: false, error: result.message || "Twilio API error" };
+    }
+
+    console.log(`SMS sent to ${toNumber} via ${channel}`);
+    return { success: true };
+  } catch (error) {
+    console.error("SMS sending error:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+  }
 }
 
 serve(async (req) => {
@@ -31,7 +93,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { emergency_request_id, blood_type, urgency, hospital_name, location_id }: NotifyDonorsRequest = 
+    const { emergency_request_id, blood_type, urgency, hospital_name, location_id, contact_phone }: NotifyDonorsRequest = 
       await req.json();
 
     if (!emergency_request_id || !blood_type) {
@@ -39,23 +101,20 @@ serve(async (req) => {
     }
 
     // Find matching verified donors with the same blood type who are available
-    let donorQuery = supabase
+    const { data: donors, error: donorsError } = await supabase
       .from("donors")
       .select(`
         id,
         profile_id,
         profiles!inner (
-          user_id
+          user_id,
+          phone,
+          full_name
         )
       `)
       .eq("blood_type", blood_type)
       .eq("is_verified", true)
       .in("status", ["available", "available_later"]);
-
-    // If location_id is provided, we could filter by location hierarchy
-    // For now, notify all matching donors
-
-    const { data: donors, error: donorsError } = await donorQuery;
 
     if (donorsError) {
       throw new Error(`Failed to fetch donors: ${donorsError.message}`);
@@ -64,7 +123,7 @@ serve(async (req) => {
     if (!donors || donors.length === 0) {
       console.log("No matching donors found for blood type:", blood_type);
       return new Response(
-        JSON.stringify({ success: true, notified: 0, message: "No matching donors found" }),
+        JSON.stringify({ success: true, notified: 0, smssSent: 0, message: "No matching donors found" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -87,13 +146,31 @@ serve(async (req) => {
       throw new Error(`Failed to create notifications: ${notifyError.message}`);
     }
 
-    console.log(`Notified ${donors.length} donors for emergency request ${emergency_request_id}`);
+    // Send SMS/WhatsApp to donors with phone numbers
+    let smsSentCount = 0;
+    const smsPromises = donors
+      .filter((donor: any) => donor.profiles.phone)
+      .map(async (donor: any) => {
+        const message = `🚨 LIFELINE KASHMIR - ${urgency.toUpperCase()} ALERT\n\n${blood_type} blood urgently needed${hospital_name ? ` at ${hospital_name}` : ""}.\n\n${contact_phone ? `Contact: ${contact_phone}` : ""}\n\nPlease respond ASAP if available.`;
+        
+        // Try SMS first
+        const smsResult = await sendSMSNotification(donor.profiles.phone, message, "sms");
+        if (smsResult.success) {
+          smsSentCount++;
+        }
+        return smsResult;
+      });
+
+    await Promise.allSettled(smsPromises);
+
+    console.log(`Notified ${donors.length} donors, ${smsSentCount} SMS sent for request ${emergency_request_id}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         notified: donors.length,
-        message: `Successfully notified ${donors.length} donors`
+        smsSent: smsSentCount,
+        message: `Notified ${donors.length} donors (${smsSentCount} via SMS)`
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
