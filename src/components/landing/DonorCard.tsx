@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { StatusIndicator } from "@/components/ui/status-indicator";
-import { Shield, Clock, MapPin, Phone } from "lucide-react";
+import { Shield, Clock, MapPin, Phone, Flag } from "lucide-react";
+import { ReportDialog } from "@/components/safety/ReportDialog";
 import type { PublicDonor } from "@/hooks/usePublicDonors";
 
 interface DonorCardProps {
@@ -92,16 +93,26 @@ export function DonorCard({ donor }: DonorCardProps) {
         </div>
       </div>
 
-      {/* Action */}
-      <Button
-        variant={donor.status === "available" ? "hero" : "outline"}
-        size="sm"
-        className="w-full"
-        disabled={donor.status === "unavailable"}
-      >
-        <Phone className="w-3.5 h-3.5" />
-        {donor.status === "available" ? "Contact Donor" : "Request Later"}
-      </Button>
+      {/* Actions */}
+      <div className="flex gap-2">
+        <Button
+          variant={donor.status === "available" ? "hero" : "outline"}
+          size="sm"
+          className="flex-1"
+          disabled={donor.status === "unavailable"}
+        >
+          <Phone className="w-3.5 h-3.5" />
+          {donor.status === "available" ? "Contact" : "Later"}
+        </Button>
+        <ReportDialog
+          reportedUserId={donor.profile_id}
+          triggerButton={
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive px-2">
+              <Flag className="w-3.5 h-3.5" />
+            </Button>
+          }
+        />
+      </div>
     </div>
   );
 }

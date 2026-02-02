@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusIndicator } from "@/components/ui/status-indicator";
 import { AvailabilityDialog } from "@/components/donor/AvailabilityDialog";
-import { Heart, LogOut, User, Droplets, MapPin, Phone, Calendar, Shield, Bell, Settings, Loader2, Siren, AlertTriangle } from "lucide-react";
+import { PhoneVerification } from "@/components/verification/PhoneVerification";
+import { Heart, LogOut, User, Droplets, MapPin, Phone, Calendar, Shield, Bell, Settings, Loader2, Siren, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export default function Dashboard() {
   const { user, isLoading: authLoading, signOut } = useAuth();
@@ -194,9 +195,38 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-3">
               {profile?.phone && (
-                <div className="flex items-center gap-3">
-                  <Phone className="w-4 h-4 text-muted-foreground" />
-                  <span>+91 {profile.phone}</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <span>+91 {profile.phone}</span>
+                  </div>
+                  {(profile as any)?.phone_verified ? (
+                    <span className="flex items-center gap-1 text-xs text-success">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Verified
+                    </span>
+                  ) : (
+                    <PhoneVerification
+                      triggerButton={
+                        <Button variant="outline" size="sm" className="text-xs">
+                          Verify
+                        </Button>
+                      }
+                    />
+                  )}
+                </div>
+              )}
+              {!profile?.phone && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-sm">No phone added</span>
+                  <PhoneVerification
+                    triggerButton={
+                      <Button variant="outline" size="sm" className="text-xs">
+                        <Phone className="w-3 h-3 mr-1" />
+                        Add & Verify
+                      </Button>
+                    }
+                  />
                 </div>
               )}
               <div className="flex items-center gap-3">

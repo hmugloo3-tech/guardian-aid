@@ -82,6 +82,8 @@ export function useCreateEmergencyRequest() {
       contact_phone: string;
       urgency: EmergencyUrgency;
       notes?: string;
+      latitude?: number;
+      longitude?: number;
     }) => {
       const { data: request, error } = await supabase
         .from("emergency_requests")

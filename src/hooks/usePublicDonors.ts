@@ -7,11 +7,13 @@ type AvailabilityStatus = Database["public"]["Enums"]["availability_status"];
 
 export interface PublicDonor {
   id: string;
+  profile_id: string;
   blood_type: BloodType;
   status: AvailabilityStatus;
   is_verified: boolean;
   last_donation_date: string | null;
   profile: {
+    id: string;
     full_name: string;
     location_id: string | null;
     location?: {
@@ -39,11 +41,13 @@ export function usePublicDonors(options: UsePublicDonorsOptions = {}) {
         .from("donors")
         .select(`
           id,
+          profile_id,
           blood_type,
           status,
           is_verified,
           last_donation_date,
           profiles!inner (
+            id,
             full_name,
             location_id,
             locations (
@@ -71,11 +75,13 @@ export function usePublicDonors(options: UsePublicDonorsOptions = {}) {
       // Transform the data to a cleaner format
       return (data || []).map((donor: any) => ({
         id: donor.id,
+        profile_id: donor.profile_id,
         blood_type: donor.blood_type,
         status: donor.status,
         is_verified: donor.is_verified,
         last_donation_date: donor.last_donation_date,
         profile: donor.profiles ? {
+          id: donor.profiles.id,
           full_name: donor.profiles.full_name,
           location_id: donor.profiles.location_id,
           location: donor.profiles.locations ? {
