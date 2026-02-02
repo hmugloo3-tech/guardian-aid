@@ -6,13 +6,13 @@ const footerLinks = {
     { label: "How It Works", href: "#how-it-works" },
     { label: "Features", href: "#features" },
     { label: "Find Donors", href: "#donors" },
-    { label: "For Hospitals", href: "#hospitals" },
+    { label: "Register as Donor", href: "/register-donor" },
   ],
   support: [
     { label: "Help Center", href: "#help" },
     { label: "Emergency Contacts", href: "#emergency" },
     { label: "FAQs", href: "#faqs" },
-    { label: "Report Issue", href: "#report" },
+    { label: "Report Issue", href: "mailto:lifelinekashmir.support@gmail.com" },
   ],
   legal: [
     { label: "Privacy Policy", href: "#privacy" },
@@ -20,6 +20,12 @@ const footerLinks = {
     { label: "Data Protection", href: "#data" },
   ],
 };
+
+const emergencyContacts = [
+  { number: "112", label: "National Emergency Helpline" },
+  { number: "108", label: "Ambulance Services" },
+  { number: "104", label: "Health Helpline" },
+];
 
 export function Footer() {
   return (
@@ -81,42 +87,53 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Contact */}
+          {/* Emergency Contacts */}
           <div>
-            <h4 className="font-semibold mb-4">Emergency Contact</h4>
+            <h4 className="font-semibold mb-4">Emergency Contacts</h4>
             <ul className="space-y-3">
+              {emergencyContacts.map((contact) => (
+                <li key={contact.number}>
+                  <a
+                    href={`tel:${contact.number}`}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Phone className="w-4 h-4 text-primary" />
+                    <span className="font-medium text-foreground">{contact.number}</span>
+                    <span className="text-xs">– {contact.label}</span>
+                  </a>
+                </li>
+              ))}
               <li>
                 <a
-                  href="tel:+911234567890"
-                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Phone className="w-4 h-4 text-primary" />
-                  +91 123 456 7890
-                </a>
-              </li>
-              <li>
-                <a
-                  href="mailto:help@lifelinekashmir.org"
+                  href="mailto:lifelinekashmir.support@gmail.com"
                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Mail className="w-4 h-4 text-primary" />
-                  help@lifelinekashmir.org
+                  lifelinekashmir.support@gmail.com
                 </a>
               </li>
               <li>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
                   <MapPin className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                  <span>Lal Chowk, Srinagar,<br />Jammu & Kashmir, India</span>
+                  <span>Service Area: Jammu & Kashmir, India</span>
                 </div>
               </li>
             </ul>
           </div>
         </div>
 
+        {/* Disclaimer */}
+        <div className="mt-10 p-4 bg-muted/50 rounded-xl border border-border/50">
+          <p className="text-xs text-muted-foreground text-center">
+            <strong className="text-foreground">Disclaimer:</strong> Life Line Kashmir is a voluntary blood donation platform. 
+            The app does not provide medical advice or emergency services. Always contact emergency services (112) for medical emergencies.
+          </p>
+        </div>
+
         {/* Bottom Bar */}
-        <div className="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="mt-8 pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} LifeLine Kashmir. Built with ❤️ for our community.
+            © {new Date().getFullYear()} Life Line Kashmir. Built with ❤️ for our community.
           </p>
           <div className="flex items-center gap-6">
             {footerLinks.legal.map((link) => (
