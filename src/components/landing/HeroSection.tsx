@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge-custom";
-import { ArrowRight, Heart, MapPin, Users, Zap, Shield } from "lucide-react";
+import { ArrowRight, Heart, MapPin, Users, Zap, Shield, Siren, PhoneCall } from "lucide-react";
+import { EmergencySOSButton } from "@/components/emergency/EmergencySOS";
 
 export function HeroSection() {
   return (
@@ -54,13 +55,7 @@ export function HeroSection() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto animate-fade-in stagger-3">
-              <Link to="/emergency-request">
-                <Button variant="emergency" size="xl" className="group w-full sm:w-auto">
-                  <Heart className="w-5 h-5 fill-current" />
-                  Request Emergency Blood
-                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                </Button>
-              </Link>
+              <EmergencySOSButton />
               <Link to="/register-donor">
                 <Button variant="hero-outline" size="xl" className="w-full sm:w-auto">
                   <Users className="w-5 h-5" />
@@ -69,8 +64,19 @@ export function HeroSection() {
               </Link>
             </div>
 
+            {/* Emergency Helpline */}
+            <div className="flex items-center gap-4 mt-6 p-4 rounded-xl bg-muted/50 border border-border/50 animate-fade-in stagger-4">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <PhoneCall className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">24/7 Emergency Helpline</p>
+                <p className="text-lg font-bold text-primary">112 • 108 • 104</p>
+              </div>
+            </div>
+
             {/* Trust Stats */}
-            <div className="grid grid-cols-3 gap-6 mt-12 pt-8 border-t border-border/50 w-full max-w-lg animate-fade-in stagger-4">
+            <div className="grid grid-cols-3 gap-6 mt-8 pt-8 border-t border-border/50 w-full max-w-lg animate-fade-in stagger-5">
               <StatItem value="2,500+" label="Verified Donors" />
               <StatItem value="180+" label="Lives Saved" />
               <StatItem value="<15min" label="Avg Response" />

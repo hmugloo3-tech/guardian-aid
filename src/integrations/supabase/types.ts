@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      blocked_users: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       donor_availability: {
         Row: {
           created_at: string
@@ -50,9 +74,11 @@ export type Database = {
         Row: {
           blood_type: Database["public"]["Enums"]["blood_type"]
           created_at: string
+          donation_locked_until: string | null
           id: string
           is_verified: boolean
           last_donation_date: string | null
+          next_eligible_date: string | null
           profile_id: string
           status: Database["public"]["Enums"]["availability_status"]
           total_donations: number
@@ -62,9 +88,11 @@ export type Database = {
         Insert: {
           blood_type: Database["public"]["Enums"]["blood_type"]
           created_at?: string
+          donation_locked_until?: string | null
           id?: string
           is_verified?: boolean
           last_donation_date?: string | null
+          next_eligible_date?: string | null
           profile_id: string
           status?: Database["public"]["Enums"]["availability_status"]
           total_donations?: number
@@ -74,9 +102,11 @@ export type Database = {
         Update: {
           blood_type?: Database["public"]["Enums"]["blood_type"]
           created_at?: string
+          donation_locked_until?: string | null
           id?: string
           is_verified?: boolean
           last_donation_date?: string | null
+          next_eligible_date?: string | null
           profile_id?: string
           status?: Database["public"]["Enums"]["availability_status"]
           total_donations?: number
@@ -98,9 +128,12 @@ export type Database = {
           blood_type: Database["public"]["Enums"]["blood_type"]
           contact_phone: string
           created_at: string
+          expires_at: string | null
           hospital_name: string | null
           id: string
+          latitude: number | null
           location_id: string | null
+          longitude: number | null
           notes: string | null
           requester_id: string | null
           status: Database["public"]["Enums"]["emergency_status"]
@@ -112,9 +145,12 @@ export type Database = {
           blood_type: Database["public"]["Enums"]["blood_type"]
           contact_phone: string
           created_at?: string
+          expires_at?: string | null
           hospital_name?: string | null
           id?: string
+          latitude?: number | null
           location_id?: string | null
+          longitude?: number | null
           notes?: string | null
           requester_id?: string | null
           status?: Database["public"]["Enums"]["emergency_status"]
@@ -126,9 +162,12 @@ export type Database = {
           blood_type?: Database["public"]["Enums"]["blood_type"]
           contact_phone?: string
           created_at?: string
+          expires_at?: string | null
           hospital_name?: string | null
           id?: string
+          latitude?: number | null
           location_id?: string | null
+          longitude?: number | null
           notes?: string | null
           requester_id?: string | null
           status?: Database["public"]["Enums"]["emergency_status"]
@@ -218,14 +257,52 @@ export type Database = {
         }
         Relationships: []
       }
+      phone_verifications: {
+        Row: {
+          attempts: number | null
+          created_at: string
+          expires_at: string
+          id: string
+          otp_code: string
+          phone: string
+          user_id: string
+          verified: boolean | null
+        }
+        Insert: {
+          attempts?: number | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          otp_code: string
+          phone: string
+          user_id: string
+          verified?: boolean | null
+        }
+        Update: {
+          attempts?: number | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          otp_code?: string
+          phone?: string
+          user_id?: string
+          verified?: boolean | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
           full_name: string
           id: string
+          latitude: number | null
           location_id: string | null
+          location_updated_at: string | null
+          longitude: number | null
           phone: string | null
+          phone_verified: boolean | null
+          phone_verified_at: string | null
           updated_at: string
           user_id: string
         }
@@ -234,8 +311,13 @@ export type Database = {
           created_at?: string
           full_name: string
           id?: string
+          latitude?: number | null
           location_id?: string | null
+          location_updated_at?: string | null
+          longitude?: number | null
           phone?: string | null
+          phone_verified?: boolean | null
+          phone_verified_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -244,8 +326,13 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          latitude?: number | null
           location_id?: string | null
+          location_updated_at?: string | null
+          longitude?: number | null
           phone?: string | null
+          phone_verified?: boolean | null
+          phone_verified_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -255,6 +342,59 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reports: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          description: string | null
+          id: string
+          report_type: Database["public"]["Enums"]["report_type"]
+          reported_emergency_id: string | null
+          reported_user_id: string | null
+          reporter_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["report_status"]
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          report_type: Database["public"]["Enums"]["report_type"]
+          reported_emergency_id?: string | null
+          reported_user_id?: string | null
+          reporter_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["report_status"]
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          report_type?: Database["public"]["Enums"]["report_type"]
+          reported_emergency_id?: string | null
+          reported_user_id?: string | null
+          reporter_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["report_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_reported_emergency_id_fkey"
+            columns: ["reported_emergency_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -285,7 +425,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_distance_km: {
+        Args: { lat1: number; lat2: number; lon1: number; lon2: number }
+        Returns: number
+      }
       check_and_expire_availability: { Args: never; Returns: undefined }
+      find_nearby_donors: {
+        Args: {
+          max_distance_km?: number
+          req_blood_type: Database["public"]["Enums"]["blood_type"]
+          req_lat: number
+          req_location_id: string
+          req_lon: number
+        }
+        Returns: {
+          blood_type: Database["public"]["Enums"]["blood_type"]
+          distance_km: number
+          donor_id: string
+          full_name: string
+          is_verified: boolean
+          phone: string
+          profile_id: string
+          status: Database["public"]["Enums"]["availability_status"]
+        }[]
+      }
       get_current_profile_id: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -294,6 +457,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      record_donation: { Args: { p_donor_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "donor" | "volunteer" | "admin"
@@ -302,6 +466,13 @@ export type Database = {
       emergency_status: "pending" | "active" | "fulfilled" | "cancelled"
       emergency_urgency: "critical" | "urgent" | "standard"
       location_level: "village" | "tehsil" | "district"
+      report_status: "pending" | "reviewed" | "resolved" | "dismissed"
+      report_type:
+        | "spam"
+        | "fake_profile"
+        | "harassment"
+        | "inappropriate"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -435,6 +606,14 @@ export const Constants = {
       emergency_status: ["pending", "active", "fulfilled", "cancelled"],
       emergency_urgency: ["critical", "urgent", "standard"],
       location_level: ["village", "tehsil", "district"],
+      report_status: ["pending", "reviewed", "resolved", "dismissed"],
+      report_type: [
+        "spam",
+        "fake_profile",
+        "harassment",
+        "inappropriate",
+        "other",
+      ],
     },
   },
 } as const

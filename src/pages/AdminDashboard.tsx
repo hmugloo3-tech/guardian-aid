@@ -3,10 +3,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useIsAdmin, useAdminStats, useVerifyDonor } from "@/hooks/useAdmin";
 import { useAllDonors } from "@/hooks/useRealtimeDonors";
 import { useEmergencyRequests, useUpdateEmergencyRequest } from "@/hooks/useEmergencyRequests";
+import { useAdminReports, useUpdateReport, type ReportStatus } from "@/hooks/useReports";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusIndicator } from "@/components/ui/status-indicator";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Heart,
   Users,
@@ -21,8 +23,11 @@ import {
   Droplets,
   Phone,
   MapPin,
+  Flag,
+  MessageSquare,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 export default function AdminDashboard() {
   const { user, isLoading: authLoading, signOut } = useAuth();
@@ -30,10 +35,13 @@ export default function AdminDashboard() {
   const { data: stats } = useAdminStats();
   const { data: donors, isLoading: donorsLoading } = useAllDonors();
   const { data: emergencies, isLoading: emergenciesLoading } = useEmergencyRequests();
+  const { data: reports, isLoading: reportsLoading } = useAdminReports("pending");
   const verifyDonor = useVerifyDonor();
   const updateEmergency = useUpdateEmergencyRequest();
+  const updateReport = useUpdateReport();
   const { toast } = useToast();
   const location = useLocation();
+  const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
 
   const isLoading = authLoading || adminLoading;
 
@@ -74,6 +82,22 @@ export default function AdminDashboard() {
       toast({
         title: "Status updated",
         description: `Emergency request marked as ${status}.`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: error instanceof Error ? error.message : "An error occurred",
+      });
+    }
+  };
+
+  const handleUpdateReportStatus = async (id: string, status: ReportStatus) => {
+    try {
+      await updateReport.mutateAsync({ id, status, admin_notes: adminNotes[id] });
+      toast({
+        title: "Report updated",
+        description: `Report marked as ${status}.`,
       });
     } catch (error) {
       toast({
@@ -189,7 +213,7 @@ export default function AdminDashboard() {
 
         {/* Main Tabs */}
         <Tabs defaultValue="pending" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="pending" className="gap-2">
               <Clock className="w-4 h-4" />
               <span className="hidden sm:inline">Pending</span>
@@ -209,6 +233,15 @@ export default function AdminDashboard() {
               {activeEmergencies.length > 0 && (
                 <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary/20 text-primary rounded-full">
                   {activeEmergencies.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="gap-2">
+              <Flag className="w-4 h-4" />
+              <span className="hidden sm:inline">Reports</span>
+              {reports && reports.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 text-xs bg-destructive/20 text-destructive rounded-full">
+                  {reports.length}
                 </span>
               )}
             </TabsTrigger>
@@ -483,6 +516,87 @@ export default function AdminDashboard() {
                             {emergency.notes}
                           </p>
                         )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Reports Tab */}
+          <TabsContent value="reports">
+            <Card>
+              <CardHeader>
+                <CardTitle>User Reports</CardTitle>
+                <CardDescription>
+                  Review and moderate reported users and content
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {reportsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                ) : !reports || reports.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Flag className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                    <p>No pending reports</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {reports.map((report) => (
+                      <div
+                        key={report.id}
+                        className="p-4 rounded-xl border-2 border-destructive/20 bg-destructive/5"
+                      >
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-destructive/20 text-destructive capitalize">
+                                {report.report_type.replace("_", " ")}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(report.created_at).toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {report.description || "No description provided"}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <Textarea
+                            placeholder="Admin notes (optional)..."
+                            value={adminNotes[report.id] || ""}
+                            onChange={(e) => setAdminNotes(prev => ({
+                              ...prev,
+                              [report.id]: e.target.value
+                            }))}
+                            rows={2}
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="success"
+                              onClick={() => handleUpdateReportStatus(report.id, "resolved")}
+                              disabled={updateReport.isPending}
+                            >
+                              <Check className="w-4 h-4" />
+                              Resolve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleUpdateReportStatus(report.id, "dismissed")}
+                              disabled={updateReport.isPending}
+                            >
+                              <X className="w-4 h-4" />
+                              Dismiss
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
