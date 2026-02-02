@@ -37,11 +37,11 @@ export function Header() {
           <div className="flex items-center gap-3">
             {/* Emergency Hotline - visible on desktop */}
             <a
-              href="tel:+911234567890"
+              href="tel:112"
               className="hidden lg:flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               <Phone className="w-4 h-4" />
-              <span>Emergency: 1234</span>
+              <span>Emergency: 112</span>
             </a>
 
             <Link to="/auth">
