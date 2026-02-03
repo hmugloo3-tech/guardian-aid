@@ -12,6 +12,8 @@ export interface Donor {
   blood_type: BloodType;
   status: AvailabilityStatus;
   last_donation_date: string | null;
+  next_eligible_date: string | null;
+  donation_locked_until: string | null;
   is_verified: boolean;
   verification_notes: string | null;
   total_donations: number;
