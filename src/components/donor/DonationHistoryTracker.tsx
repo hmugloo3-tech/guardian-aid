@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { 
   Calendar, 
   Heart, 
@@ -14,13 +13,17 @@ import {
   CheckCircle2,
   Award
 } from "lucide-react";
-import { differenceInDays, format, addDays } from "date-fns";
+import { differenceInDays, format } from "date-fns";
+import { DonorCertificate, DonorBadgeDisplay } from "./DonorCertificate";
 
 interface DonationHistoryTrackerProps {
+  donorName: string;
+  bloodType: string;
   lastDonationDate: string | null;
   nextEligibleDate: string | null;
   totalDonations: number;
   donationLockedUntil?: string | null;
+  isVerified: boolean;
 }
 
 const healthTips = [
@@ -51,10 +54,13 @@ const healthTips = [
 ];
 
 export function DonationHistoryTracker({
+  donorName,
+  bloodType,
   lastDonationDate,
   nextEligibleDate,
   totalDonations,
-  donationLockedUntil
+  donationLockedUntil,
+  isVerified
 }: DonationHistoryTrackerProps) {
   const countdown = useMemo(() => {
     if (!nextEligibleDate) return null;
@@ -153,6 +159,32 @@ export function DonationHistoryTracker({
           )}
         </CardContent>
       </Card>
+
+      {/* Badge & Certificate Section */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <DonorBadgeDisplay totalDonations={totalDonations} />
+        
+        <Card className="border-border/50">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <Award className="w-12 h-12 mx-auto text-primary" />
+              <div>
+                <h3 className="font-semibold">Your Achievement Certificate</h3>
+                <p className="text-sm text-muted-foreground">
+                  Download or share your donation certificate
+                </p>
+              </div>
+              <DonorCertificate
+                donorName={donorName}
+                bloodType={bloodType}
+                totalDonations={totalDonations}
+                lastDonationDate={lastDonationDate}
+                isVerified={isVerified}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Donation Stats Card */}
       <Card className="border-border/50">
