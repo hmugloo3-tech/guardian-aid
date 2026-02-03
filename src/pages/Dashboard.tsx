@@ -317,10 +317,13 @@ export default function Dashboard() {
 
           <TabsContent value="history">
             <DonationHistoryTracker
+              donorName={profile?.full_name || "Donor"}
+              bloodType={donor?.blood_type || "Unknown"}
               lastDonationDate={donor?.last_donation_date || null}
               nextEligibleDate={donor?.next_eligible_date || null}
               totalDonations={donor?.total_donations || 0}
               donationLockedUntil={donor?.donation_locked_until || null}
+              isVerified={donor?.is_verified || false}
             />
           </TabsContent>
         </Tabs>
