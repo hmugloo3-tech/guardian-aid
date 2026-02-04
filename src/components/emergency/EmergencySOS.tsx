@@ -109,18 +109,23 @@ export function EmergencySOSForm({ onSuccess }: { onSuccess?: () => void }) {
 
   const handleGetLocation = async () => {
     try {
+      geolocation.clearError();
       const pos = await geolocation.getCurrentPosition();
       setGpsLocation({ lat: pos.latitude, lng: pos.longitude });
       setUseGPS(true);
       toast({
-        title: "Location captured",
-        description: "Your GPS coordinates will help find nearby donors faster.",
+        title: "📍 Location captured!",
+        description: `GPS coordinates saved (accuracy: ${Math.round(pos.accuracy)}m). Nearby donors will be prioritized.`,
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Could not get location";
+      console.error("[GPS Button] Error:", errorMessage);
+      setUseGPS(false);
+      setGpsLocation(null);
       toast({
         variant: "destructive",
         title: "Location failed",
-        description: error instanceof Error ? error.message : "Could not get location",
+        description: errorMessage,
       });
     }
   };
@@ -343,19 +348,32 @@ export function EmergencySOSForm({ onSuccess }: { onSuccess?: () => void }) {
             <div className="grid grid-cols-2 gap-3">
               <Button
                 type="button"
-                variant={useGPS ? "default" : "outline"}
+                variant={useGPS ? "default" : geolocation.error ? "destructive" : "outline"}
                 onClick={handleGetLocation}
                 disabled={geolocation.isLoading}
                 className="h-12"
               >
                 {geolocation.isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Getting...
+                  </>
                 ) : useGPS ? (
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  <>
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    GPS Captured
+                  </>
+                ) : geolocation.error ? (
+                  <>
+                    <Navigation className="w-4 h-4 mr-2" />
+                    Retry GPS
+                  </>
                 ) : (
-                  <Navigation className="w-4 h-4 mr-2" />
+                  <>
+                    <Navigation className="w-4 h-4 mr-2" />
+                    Use GPS
+                  </>
                 )}
-                {useGPS ? "GPS Captured" : "Use GPS"}
               </Button>
               <Select
                 value={selectedDistrict}

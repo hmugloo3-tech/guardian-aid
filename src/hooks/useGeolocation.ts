@@ -16,36 +16,53 @@ export function useGeolocation() {
 
   const getCurrentPosition = useCallback(() => {
     return new Promise<GeolocationPosition>((resolve, reject) => {
+      // Check if we're in a secure context (HTTPS)
+      if (!window.isSecureContext) {
+        const message = "GPS requires a secure connection (HTTPS).";
+        setError(message);
+        setIsLoading(false);
+        reject(new Error(message));
+        return;
+      }
+
       if (!navigator.geolocation) {
-        reject(new Error("Geolocation is not supported by your browser"));
+        const message = "Geolocation is not supported by your browser.";
+        setError(message);
+        setIsLoading(false);
+        reject(new Error(message));
         return;
       }
 
       setIsLoading(true);
       setError(null);
 
+      console.log("[GPS] Requesting location...");
+
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          console.log("[GPS] Location received:", pos.coords.latitude, pos.coords.longitude);
           const location = {
             latitude: pos.coords.latitude,
             longitude: pos.coords.longitude,
             accuracy: pos.coords.accuracy,
           };
           setPosition(location);
+          setError(null);
           setIsLoading(false);
           resolve(location);
         },
         (err) => {
-          let message = "Failed to get location";
+          console.error("[GPS] Error:", err.code, err.message);
+          let message = "Failed to get location.";
           switch (err.code) {
             case err.PERMISSION_DENIED:
-              message = "Location permission denied. Please enable location access.";
+              message = "Location permission denied. Please allow location access in your browser settings.";
               break;
             case err.POSITION_UNAVAILABLE:
-              message = "Location information unavailable.";
+              message = "Location unavailable. Make sure GPS is enabled on your device.";
               break;
             case err.TIMEOUT:
-              message = "Location request timed out.";
+              message = "Location request timed out. Please try again.";
               break;
           }
           setError(message);
@@ -54,11 +71,15 @@ export function useGeolocation() {
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000,
+          timeout: 15000, // Increased timeout to 15 seconds
           maximumAge: 60000, // Cache for 1 minute
         }
       );
     });
+  }, []);
+
+  const clearError = useCallback(() => {
+    setError(null);
   }, []);
 
   return {
@@ -66,6 +87,7 @@ export function useGeolocation() {
     error,
     isLoading,
     getCurrentPosition,
+    clearError,
   };
 }
 
