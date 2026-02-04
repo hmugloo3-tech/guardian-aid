@@ -296,7 +296,11 @@ export default function Dashboard() {
                                 </p>
                               </div>
                             </div>
-                            <Button size="sm" variant="hero">
+                            <Button 
+                              size="sm" 
+                              variant="hero"
+                              onClick={() => window.open(`tel:${emergency.contact_phone}`, '_self')}
+                            >
                               <Phone className="w-4 h-4" />
                               Respond
                             </Button>
