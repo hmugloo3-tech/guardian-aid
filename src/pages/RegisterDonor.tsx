@@ -10,18 +10,21 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BloodTypeGrid } from "@/components/ui/blood-type-badge";
-import { Heart, Phone, MapPin, Droplets, Calendar, ArrowRight, ArrowLeft, Check, Loader2, Shield } from "lucide-react";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Heart, Phone, MapPin, Droplets, Calendar, ArrowRight, ArrowLeft, Check, Loader2, Shield, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { useSendOTP, useVerifyOTP } from "@/hooks/usePhoneVerification";
 import type { Database } from "@/integrations/supabase/types";
 
 type BloodType = Database["public"]["Enums"]["blood_type"];
 
 const STEPS = [
   { id: 1, title: "Blood Type", icon: Droplets },
-  { id: 2, title: "Contact", icon: Phone },
-  { id: 3, title: "Location", icon: MapPin },
-  { id: 4, title: "Confirm", icon: Check },
+  { id: 2, title: "Phone", icon: Phone },
+  { id: 3, title: "Verify", icon: Shield },
+  { id: 4, title: "Location", icon: MapPin },
+  { id: 5, title: "Confirm", icon: Check },
 ];
 
 export default function RegisterDonor() {
@@ -31,6 +34,8 @@ export default function RegisterDonor() {
   const updateProfile = useUpdateProfile();
   const createDonor = useCreateDonor();
   const { data: districts } = useDistricts();
+  const sendOTP = useSendOTP();
+  const verifyOTP = useVerifyOTP();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -40,6 +45,9 @@ export default function RegisterDonor() {
   // Form state
   const [bloodType, setBloodType] = useState<BloodType | undefined>();
   const [phone, setPhone] = useState("");
+  const [otpValue, setOtpValue] = useState("");
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [selectedDistrict, setSelectedDistrict] = useState<string>("");
   const [selectedTehsil, setSelectedTehsil] = useState<string>("");
   const [lastDonationDate, setLastDonationDate] = useState("");
@@ -65,16 +73,77 @@ export default function RegisterDonor() {
       case 2:
         return phone.length >= 10;
       case 3:
-        return !!selectedTehsil || !!selectedDistrict;
+        return isPhoneVerified;
       case 4:
+        return !!selectedTehsil || !!selectedDistrict;
+      case 5:
         return true;
       default:
         return false;
     }
   };
 
+  const handleSendOTP = async () => {
+    if (phone.length !== 10) {
+      toast({
+        variant: "destructive",
+        title: "Invalid phone number",
+        description: "Please enter a valid 10-digit phone number",
+      });
+      return;
+    }
+
+    try {
+      await sendOTP.mutateAsync(phone);
+      setOtpSent(true);
+      toast({
+        title: "OTP Sent! 📱",
+        description: "Check your phone for the 6-digit verification code",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Failed to send OTP",
+        description: error instanceof Error ? error.message : "Please try again",
+      });
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (otpValue.length !== 6) {
+      toast({
+        variant: "destructive",
+        title: "Invalid OTP",
+        description: "Please enter the 6-digit code",
+      });
+      return;
+    }
+
+    try {
+      await verifyOTP.mutateAsync({ phone, otpCode: otpValue });
+      setIsPhoneVerified(true);
+      toast({
+        title: "Phone Verified! ✓",
+        description: "Your phone number has been verified successfully",
+      });
+      // Auto-advance to next step
+      setStep(4);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Verification failed",
+        description: error instanceof Error ? error.message : "Invalid OTP code",
+      });
+    }
+  };
+
   const handleNext = () => {
-    if (step < 4) {
+    if (step === 2 && !otpSent) {
+      // On step 2, first send OTP before advancing
+      handleSendOTP();
+      return;
+    }
+    if (step < 5) {
       setStep(step + 1);
     }
   };
@@ -272,8 +341,93 @@ export default function RegisterDonor() {
             </>
           )}
 
-          {/* Step 3: Location */}
+          {/* Step 3: OTP Verification */}
           {step === 3 && (
+            <>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-primary" />
+                  Verify Your Phone
+                </CardTitle>
+                <CardDescription>
+                  Enter the 6-digit code sent to +91 {phone}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {isPhoneVerified ? (
+                  <div className="text-center py-8">
+                    <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle2 className="w-10 h-10 text-success" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-2">Phone Verified!</h3>
+                    <p className="text-muted-foreground">+91 {phone}</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-col items-center space-y-4">
+                      <InputOTP
+                        maxLength={6}
+                        value={otpValue}
+                        onChange={setOtpValue}
+                      >
+                        <InputOTPGroup>
+                          <InputOTPSlot index={0} className="w-12 h-14 text-xl" />
+                          <InputOTPSlot index={1} className="w-12 h-14 text-xl" />
+                          <InputOTPSlot index={2} className="w-12 h-14 text-xl" />
+                          <InputOTPSlot index={3} className="w-12 h-14 text-xl" />
+                          <InputOTPSlot index={4} className="w-12 h-14 text-xl" />
+                          <InputOTPSlot index={5} className="w-12 h-14 text-xl" />
+                        </InputOTPGroup>
+                      </InputOTP>
+                    </div>
+
+                    <Button
+                      onClick={handleVerifyOTP}
+                      disabled={verifyOTP.isPending || otpValue.length !== 6}
+                      className="w-full h-12"
+                    >
+                      {verifyOTP.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          Verifying...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          Verify Code
+                        </>
+                      )}
+                    </Button>
+
+                    <div className="flex flex-col items-center gap-2">
+                      <button
+                        onClick={handleSendOTP}
+                        disabled={sendOTP.isPending}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        {sendOTP.isPending ? "Sending..." : "Resend OTP"}
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setStep(2);
+                          setOtpSent(false);
+                          setOtpValue("");
+                        }}
+                      >
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        Change phone number
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </>
+          )}
+
+          {/* Step 4: Location */}
+          {step === 4 && (
             <>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -328,8 +482,8 @@ export default function RegisterDonor() {
             </>
           )}
 
-          {/* Step 4: Confirmation */}
-          {step === 4 && (
+          {/* Step 5: Confirmation */}
+          {step === 5 && (
             <>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -355,7 +509,13 @@ export default function RegisterDonor() {
                       <Phone className="w-5 h-5 text-primary" />
                       <span className="text-muted-foreground">Phone</span>
                     </div>
-                    <span className="font-medium">+91 {phone}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">+91 {phone}</span>
+                      <span className="flex items-center gap-1 text-xs text-success">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Verified
+                      </span>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
@@ -398,23 +558,37 @@ export default function RegisterDonor() {
 
           {/* Navigation Buttons */}
           <div className="p-6 pt-0 flex gap-4">
-            {step > 1 && (
+            {step > 1 && step !== 3 && (
               <Button variant="outline" onClick={handleBack} className="flex-1">
                 <ArrowLeft className="w-4 h-4" />
                 Back
               </Button>
             )}
-            {step < 4 ? (
+            {step < 5 && step !== 3 ? (
               <Button
                 variant="hero"
                 onClick={handleNext}
-                disabled={!canProceed()}
+                disabled={!canProceed() || (step === 2 && sendOTP.isPending)}
                 className="flex-1"
               >
-                Continue
-                <ArrowRight className="w-4 h-4" />
+                {step === 2 && sendOTP.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending OTP...
+                  </>
+                ) : step === 2 ? (
+                  <>
+                    Send OTP
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                ) : (
+                  <>
+                    Continue
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </Button>
-            ) : (
+            ) : step === 5 ? (
               <Button
                 variant="emergency"
                 onClick={handleSubmit}
@@ -433,7 +607,7 @@ export default function RegisterDonor() {
                   </>
                 )}
               </Button>
-            )}
+            ) : null}
           </div>
         </Card>
       </div>
