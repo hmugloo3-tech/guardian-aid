@@ -110,12 +110,31 @@ serve(async (req) => {
         if (!response.ok) {
           const result = await response.json();
           console.error("Twilio error:", result);
-          // Don't throw - we still created the OTP record for testing
+         console.error("Twilio error details:", JSON.stringify(result));
+         // Return error to user so they know SMS failed
+         return new Response(
+           JSON.stringify({ 
+             success: false, 
+             error: `SMS delivery failed: ${result.message || "Twilio error"}. If using trial account, ensure the phone number is verified in Twilio.`,
+             twilioError: result
+           }),
+           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+         );
         } else {
-          console.log(`OTP sent to ${formattedPhone}`);
+         const result = await response.json();
+         console.log(`OTP sent successfully to ${formattedPhone}. SID: ${result.sid}`);
         }
       } else {
-        console.log("Twilio not configured - OTP created but not sent:", otp);
+       console.log("Twilio not configured - OTP created for testing:", otp);
+       // In dev mode without Twilio, return the OTP for testing (REMOVE IN PRODUCTION)
+       return new Response(
+         JSON.stringify({ 
+           success: true, 
+           message: "OTP created (Twilio not configured - dev mode)",
+           devOtp: otp // Only for testing without Twilio
+         }),
+         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+       );
       }
 
       return new Response(
