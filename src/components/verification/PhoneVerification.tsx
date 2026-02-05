@@ -6,6 +6,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Phone, Loader2, CheckCircle2, Shield, ArrowLeft } from "lucide-react";
 import { usePhoneVerification } from "@/hooks/usePhoneVerification";
+import { clearRecaptcha } from "@/integrations/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 
 interface PhoneVerificationProps {
@@ -223,6 +224,7 @@ export function PhoneVerificationForm({ onVerified }: { onVerified?: () => void 
                 reset();
                 setPhoneInput("");
                 setOtpValue("");
+            clearRecaptcha();
               }}
               className="text-sm"
             >
