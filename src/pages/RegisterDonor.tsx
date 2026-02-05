@@ -15,6 +15,8 @@ import { Heart, Phone, MapPin, Droplets, Calendar, ArrowRight, ArrowLeft, Check,
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { useSendOTP, useVerifyOTP } from "@/hooks/usePhoneVerification";
+import { clearRecaptcha } from "@/integrations/firebase/config";
+import { ConfirmationResult } from "firebase/auth";
 import type { Database } from "@/integrations/supabase/types";
 
 type BloodType = Database["public"]["Enums"]["blood_type"];
@@ -48,6 +50,7 @@ export default function RegisterDonor() {
   const [otpValue, setOtpValue] = useState("");
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<string>("");
   const [selectedTehsil, setSelectedTehsil] = useState<string>("");
   const [lastDonationDate, setLastDonationDate] = useState("");
@@ -94,7 +97,8 @@ export default function RegisterDonor() {
     }
 
     try {
-      await sendOTP.mutateAsync(phone);
+      const result = await sendOTP.mutateAsync(phone);
+      setConfirmationResult(result.confirmationResult);
       setOtpSent(true);
       toast({
         title: "OTP Sent! 📱",
@@ -119,8 +123,17 @@ export default function RegisterDonor() {
       return;
     }
 
+    if (!confirmationResult) {
+      toast({
+        variant: "destructive",
+        title: "Session expired",
+        description: "Please request a new OTP",
+      });
+      return;
+    }
+
     try {
-      await verifyOTP.mutateAsync({ phone, otpCode: otpValue });
+      await verifyOTP.mutateAsync({ phone, otpCode: otpValue, confirmationResult });
       setIsPhoneVerified(true);
       toast({
         title: "Phone Verified! ✓",
@@ -414,6 +427,8 @@ export default function RegisterDonor() {
                           setStep(2);
                           setOtpSent(false);
                           setOtpValue("");
+                          setConfirmationResult(null);
+                          clearRecaptcha();
                         }}
                       >
                         <ArrowLeft className="w-4 h-4 mr-2" />
