@@ -3,12 +3,12 @@ import { getAuth, RecaptchaVerifier, Auth } from "firebase/auth";
 
 // Firebase configuration - these are publishable keys
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyD6HEP5L8LiIDXybZIjkfCwL3_UO-GDIqk",
+  authDomain: "blood-donation-7b6c1.firebaseapp.com",
+  projectId: "blood-donation-7b6c1",
+  storageBucket: "blood-donation-7b6c1.firebasestorage.app",
+  messagingSenderId: "166162516647",
+  appId: "1:166162516647:web:b5aca2c373fc794269a982",
 };
 
 // Lazy initialization to avoid crashing when keys aren't configured
