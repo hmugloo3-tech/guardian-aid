@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { signInWithPhoneNumber, PhoneAuthProvider, ConfirmationResult } from "firebase/auth";
-import { auth, getRecaptchaVerifier, clearRecaptcha } from "@/integrations/firebase/config";
+import { getFirebaseAuth, getRecaptchaVerifier, clearRecaptcha } from "@/integrations/firebase/config";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -39,9 +39,10 @@ export function useSendOTP() {
       }
       
       try {
+        const firebaseAuth = getFirebaseAuth();
         const recaptchaVerifier = getRecaptchaVerifier('recaptcha-container');
         
-        const confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier);
+        const confirmationResult = await signInWithPhoneNumber(firebaseAuth, formattedPhone, recaptchaVerifier);
         confirmationResultRef.current = confirmationResult;
         
         return { confirmationResult };
