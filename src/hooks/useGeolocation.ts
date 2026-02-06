@@ -9,18 +9,52 @@ export interface GeolocationPosition {
   accuracy: number;
 }
 
+/**
+ * Attempts to get position with given options, returns a promise.
+ */
+function tryGetPosition(options: PositionOptions): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        resolve({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        });
+      },
+      reject,
+      options
+    );
+  });
+}
+
+/**
+ * Maps GeolocationPositionError codes to user-friendly messages.
+ */
+function getErrorMessage(err: GeolocationPositionError): string {
+  switch (err.code) {
+    case err.PERMISSION_DENIED:
+      return "Location permission denied. Please allow location access in your browser/device settings.";
+    case err.POSITION_UNAVAILABLE:
+      return "Location unavailable. Make sure GPS or mobile data is enabled on your device.";
+    case err.TIMEOUT:
+      return "Location request timed out. Please try again in an open area.";
+    default:
+      return "Failed to get location. Please try again.";
+  }
+}
+
 export function useGeolocation() {
   const [position, setPosition] = useState<GeolocationPosition | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const getCurrentPosition = useCallback(() => {
-    return new Promise<GeolocationPosition>((resolve, reject) => {
-      // Check if we're in a secure context (HTTPS)
+    return new Promise<GeolocationPosition>(async (resolve, reject) => {
+      // Check secure context (HTTPS)
       if (!window.isSecureContext) {
         const message = "GPS requires a secure connection (HTTPS).";
         setError(message);
-        setIsLoading(false);
         reject(new Error(message));
         return;
       }
@@ -28,7 +62,6 @@ export function useGeolocation() {
       if (!navigator.geolocation) {
         const message = "Geolocation is not supported by your browser.";
         setError(message);
-        setIsLoading(false);
         reject(new Error(message));
         return;
       }
@@ -36,45 +69,45 @@ export function useGeolocation() {
       setIsLoading(true);
       setError(null);
 
-      console.log("[GPS] Requesting location...");
+      console.log("[GPS] Requesting location (high accuracy first)...");
 
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          console.log("[GPS] Location received:", pos.coords.latitude, pos.coords.longitude);
-          const location = {
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            accuracy: pos.coords.accuracy,
-          };
+      try {
+        // Strategy 1: Try high accuracy (GPS hardware) first — best for outdoor use
+        const location = await tryGetPosition({
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000,
+        });
+        console.log("[GPS] High accuracy location received:", location.latitude, location.longitude, `(±${Math.round(location.accuracy)}m)`);
+        setPosition(location);
+        setError(null);
+        setIsLoading(false);
+        resolve(location);
+      } catch (highAccError) {
+        console.warn("[GPS] High accuracy failed, trying network fallback...", highAccError);
+
+        try {
+          // Strategy 2: Fall back to network/WiFi/cell-tower location
+          // This works on more devices and in indoor environments
+          const location = await tryGetPosition({
+            enableHighAccuracy: false,
+            timeout: 15000,
+            maximumAge: 120000, // Accept 2-min cached position
+          });
+          console.log("[GPS] Network fallback location received:", location.latitude, location.longitude, `(±${Math.round(location.accuracy)}m)`);
           setPosition(location);
           setError(null);
           setIsLoading(false);
           resolve(location);
-        },
-        (err) => {
-          console.error("[GPS] Error:", err.code, err.message);
-          let message = "Failed to get location.";
-          switch (err.code) {
-            case err.PERMISSION_DENIED:
-              message = "Location permission denied. Please allow location access in your browser settings.";
-              break;
-            case err.POSITION_UNAVAILABLE:
-              message = "Location unavailable. Make sure GPS is enabled on your device.";
-              break;
-            case err.TIMEOUT:
-              message = "Location request timed out. Please try again.";
-              break;
-          }
+        } catch (lowAccError) {
+          const geoError = lowAccError as GeolocationPositionError;
+          const message = getErrorMessage(geoError);
+          console.error("[GPS] Both strategies failed:", geoError.code, geoError.message);
           setError(message);
           setIsLoading(false);
           reject(new Error(message));
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 15000, // Increased timeout to 15 seconds
-          maximumAge: 60000, // Cache for 1 minute
         }
-      );
+      }
     });
   }, []);
 
