@@ -9,6 +9,7 @@ const firebaseConfig = {
   storageBucket: "blood-donation-7b6c1.firebasestorage.app",
   messagingSenderId: "166162516647",
   appId: "1:166162516647:web:b5aca2c373fc794269a982",
+  measurementId: "G-XBJ0NZQ9C9",
 };
 
 // Lazy initialization to avoid crashing when keys aren't configured
