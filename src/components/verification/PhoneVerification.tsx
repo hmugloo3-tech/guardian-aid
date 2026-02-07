@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Phone, Loader2, CheckCircle2, Shield, ArrowLeft } from "lucide-react";
+import { Phone, Loader2, CheckCircle2, Shield, ArrowLeft, Timer } from "lucide-react";
 import { usePhoneVerification } from "@/hooks/usePhoneVerification";
 import { clearRecaptcha } from "@/integrations/firebase/config";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +39,8 @@ export function PhoneVerification({ onVerified, triggerButton }: PhoneVerificati
   );
 }
 
+const RESEND_COOLDOWN = 30; // seconds
+
 export function PhoneVerificationForm({ onVerified }: { onVerified?: () => void }) {
   const { toast } = useToast();
   const {
@@ -55,8 +57,18 @@ export function PhoneVerificationForm({ onVerified }: { onVerified?: () => void 
 
   const [phoneInput, setPhoneInput] = useState("");
   const [otpValue, setOtpValue] = useState("");
+  const [resendTimer, setResendTimer] = useState(0);
 
-  const onSendOTP = async () => {
+  // Resend countdown timer
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+    const interval = setInterval(() => {
+      setResendTimer((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  const onSendOTP = useCallback(async () => {
     if (phoneInput.length !== 10) {
       toast({
         variant: "destructive",
@@ -68,9 +80,10 @@ export function PhoneVerificationForm({ onVerified }: { onVerified?: () => void 
 
     try {
       await handleSendOTP(phoneInput);
+      setResendTimer(RESEND_COOLDOWN);
       toast({
-        title: "OTP Sent!",
-        description: "Check your phone for the verification code",
+        title: "OTP Sent! 📱",
+        description: "Check your phone for the 6-digit verification code",
       });
     } catch (error) {
       toast({
@@ -79,10 +92,22 @@ export function PhoneVerificationForm({ onVerified }: { onVerified?: () => void 
         description: error instanceof Error ? error.message : "Please try again",
       });
     }
-  };
+  }, [phoneInput, handleSendOTP, toast]);
 
-  const onVerifyOTP = async () => {
-    if (otpValue.length !== 6) {
+  // Auto-submit when 6 digits entered
+  const onOTPChange = useCallback((value: string) => {
+    setOtpValue(value);
+    if (value.length === 6) {
+      // Slight delay to let the UI update with all digits filled
+      setTimeout(() => {
+        onVerifyOTPHandler(value);
+      }, 300);
+    }
+  }, []);
+
+  const onVerifyOTPHandler = useCallback(async (code?: string) => {
+    const otpToVerify = code || otpValue;
+    if (otpToVerify.length !== 6) {
       toast({
         variant: "destructive",
         title: "Invalid OTP",
@@ -92,20 +117,40 @@ export function PhoneVerificationForm({ onVerified }: { onVerified?: () => void 
     }
 
     try {
-      await handleVerifyOTP(otpValue);
+      await handleVerifyOTP(otpToVerify);
       toast({
         title: "Phone Verified! ✓",
         description: "Your phone number has been verified successfully",
       });
       onVerified?.();
     } catch (error) {
+      setOtpValue("");
       toast({
         variant: "destructive",
         title: "Verification failed",
-        description: error instanceof Error ? error.message : "Invalid OTP",
+        description: error instanceof Error ? error.message : "Invalid OTP. Please try again.",
       });
     }
-  };
+  }, [otpValue, handleVerifyOTP, toast, onVerified]);
+
+  const handleResend = useCallback(async () => {
+    if (resendTimer > 0 || isSending) return;
+    setOtpValue("");
+    try {
+      await handleSendOTP(phoneInput);
+      setResendTimer(RESEND_COOLDOWN);
+      toast({
+        title: "OTP Resent! 📱",
+        description: "A new verification code has been sent",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Failed to resend",
+        description: error instanceof Error ? error.message : "Please try again",
+      });
+    }
+  }, [resendTimer, isSending, phoneInput, handleSendOTP, toast]);
 
   return (
     <div className="space-y-6">
@@ -140,18 +185,23 @@ export function PhoneVerificationForm({ onVerified }: { onVerified?: () => void 
           <div className="space-y-2">
             <Label htmlFor="phone">Phone Number</Label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
                 +91
               </span>
               <Input
                 id="phone"
                 type="tel"
+                inputMode="numeric"
                 placeholder="9876543210"
                 value={phoneInput}
                 onChange={(e) => setPhoneInput(e.target.value.replace(/\D/g, "").slice(0, 10))}
                 className="pl-12 h-12 text-lg"
+                autoFocus
               />
             </div>
+            <p className="text-xs text-muted-foreground">
+              We'll send an SMS with a 6-digit code to verify this number
+            </p>
           </div>
 
           <Button
@@ -173,9 +223,11 @@ export function PhoneVerificationForm({ onVerified }: { onVerified?: () => void 
           </Button>
 
           {sendError && (
-            <p className="text-sm text-destructive text-center">
-              {sendError instanceof Error ? sendError.message : "Failed to send OTP"}
-            </p>
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <p className="text-sm text-destructive">
+                {sendError instanceof Error ? sendError.message : "Failed to send OTP"}
+              </p>
+            </div>
           )}
         </div>
       )}
@@ -186,7 +238,8 @@ export function PhoneVerificationForm({ onVerified }: { onVerified?: () => void 
             <InputOTP
               maxLength={6}
               value={otpValue}
-              onChange={setOtpValue}
+              onChange={onOTPChange}
+              autoFocus
             >
               <InputOTPGroup>
                 <InputOTPSlot index={0} className="w-12 h-14 text-xl" />
@@ -197,10 +250,17 @@ export function PhoneVerificationForm({ onVerified }: { onVerified?: () => void 
                 <InputOTPSlot index={5} className="w-12 h-14 text-xl" />
               </InputOTPGroup>
             </InputOTP>
+            
+            {isVerifying && (
+              <div className="flex items-center gap-2 text-primary text-sm">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Verifying automatically...
+              </div>
+            )}
           </div>
 
           <Button
-            onClick={onVerifyOTP}
+            onClick={() => onVerifyOTPHandler()}
             disabled={isVerifying || otpValue.length !== 6}
             className="w-full h-12"
           >
@@ -217,33 +277,44 @@ export function PhoneVerificationForm({ onVerified }: { onVerified?: () => void 
             )}
           </Button>
 
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-3">
             <Button
               variant="ghost"
               onClick={() => {
                 reset();
                 setPhoneInput("");
                 setOtpValue("");
-            clearRecaptcha();
+                setResendTimer(0);
+                clearRecaptcha();
               }}
               className="text-sm"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Change phone number
             </Button>
-            <button
-              onClick={onSendOTP}
-              disabled={isSending}
-              className="text-sm text-primary hover:underline"
-            >
-              {isSending ? "Sending..." : "Resend OTP"}
-            </button>
+            
+            {resendTimer > 0 ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Timer className="w-4 h-4" />
+                Resend in {resendTimer}s
+              </div>
+            ) : (
+              <button
+                onClick={handleResend}
+                disabled={isSending}
+                className="text-sm text-primary hover:underline font-medium"
+              >
+                {isSending ? "Sending..." : "Resend OTP"}
+              </button>
+            )}
           </div>
 
           {verifyError && (
-            <p className="text-sm text-destructive text-center">
-              {verifyError instanceof Error ? verifyError.message : "Invalid OTP"}
-            </p>
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <p className="text-sm text-destructive text-center">
+                {verifyError instanceof Error ? verifyError.message : "Invalid OTP. Please try again."}
+              </p>
+            </div>
           )}
         </div>
       )}

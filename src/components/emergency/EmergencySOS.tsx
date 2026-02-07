@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCreateEmergencyRequest } from "@/hooks/useEmergencyRequests";
-import { useGeolocation, useUpdateProfileLocation } from "@/hooks/useGeolocation";
+import { useGeolocation, useUpdateProfileLocation, getAccuracyInfo } from "@/hooks/useGeolocation";
 import { useDistricts, useTehsils } from "@/hooks/useLocations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,11 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BloodTypeGrid } from "@/components/ui/blood-type-badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Heart,
   Phone,
   MapPin,
   Droplets,
-  AlertTriangle,
   Building2,
   ArrowLeft,
   Loader2,
@@ -26,9 +24,13 @@ import {
   Zap,
   Navigation,
   CheckCircle2,
+  Signal,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+
+// Lazy-load map to keep SOS form fast on 2G
+const LocationMap = lazy(() => import("@/components/map/LocationMap"));
 
 type BloodType = Database["public"]["Enums"]["blood_type"];
 type EmergencyUrgency = Database["public"]["Enums"]["emergency_urgency"];
@@ -103,7 +105,8 @@ export function EmergencySOSForm({ onSuccess }: { onSuccess?: () => void }) {
   const [selectedTehsil, setSelectedTehsil] = useState("");
   const [notes, setNotes] = useState("");
   const [useGPS, setUseGPS] = useState(false);
-  const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [showMap, setShowMap] = useState(false);
 
   const { data: tehsils } = useTehsils(selectedDistrict);
 
@@ -111,11 +114,14 @@ export function EmergencySOSForm({ onSuccess }: { onSuccess?: () => void }) {
     try {
       geolocation.clearError();
       const pos = await geolocation.getCurrentPosition();
-      setGpsLocation({ lat: pos.latitude, lng: pos.longitude });
+      setGpsLocation({ lat: pos.latitude, lng: pos.longitude, accuracy: pos.accuracy });
       setUseGPS(true);
+      setShowMap(true);
+      
+      const accuracyInfo = getAccuracyInfo(pos.accuracy);
       toast({
         title: "📍 Location captured!",
-        description: `GPS coordinates saved (accuracy: ${Math.round(pos.accuracy)}m). Nearby donors will be prioritized.`,
+        description: `${accuracyInfo.description} — Nearby donors will be prioritized.`,
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Could not get location";
@@ -158,20 +164,27 @@ export function EmergencySOSForm({ onSuccess }: { onSuccess?: () => void }) {
         contact_phone: contactPhone,
         location_id: selectedTehsil || selectedDistrict || undefined,
         notes: notes || undefined,
+        // Send GPS coordinates with the emergency request
+        latitude: gpsLocation?.lat,
+        longitude: gpsLocation?.lng,
       });
 
-      // Update profile location if GPS was captured
+      // Update profile location if GPS was captured and user is logged in
       if (gpsLocation && user) {
-        await updateProfileLocation.mutateAsync({
-          latitude: gpsLocation.lat,
-          longitude: gpsLocation.lng,
-          accuracy: 0,
-        });
+        try {
+          await updateProfileLocation.mutateAsync({
+            latitude: gpsLocation.lat,
+            longitude: gpsLocation.lng,
+            accuracy: gpsLocation.accuracy,
+          });
+        } catch {
+          // Non-critical, don't block SOS
+        }
       }
 
       toast({
         title: "🚨 Emergency request submitted!",
-        description: "Nearby donors are being notified via SMS. Stay by your phone.",
+        description: "Nearby donors are being notified. Stay by your phone.",
       });
 
       onSuccess?.();
@@ -315,6 +328,7 @@ export function EmergencySOSForm({ onSuccess }: { onSuccess?: () => void }) {
               <Input
                 id="contact-phone"
                 type="tel"
+                inputMode="numeric"
                 placeholder="9876543210"
                 value={contactPhone}
                 onChange={(e) => setContactPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
@@ -339,7 +353,7 @@ export function EmergencySOSForm({ onSuccess }: { onSuccess?: () => void }) {
             />
           </div>
 
-          {/* GPS Location */}
+          {/* GPS Location with Accuracy */}
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <MapPin className="w-4 h-4" />
@@ -380,7 +394,6 @@ export function EmergencySOSForm({ onSuccess }: { onSuccess?: () => void }) {
                 onValueChange={(v) => {
                   setSelectedDistrict(v);
                   setSelectedTehsil("");
-                  setUseGPS(false);
                 }}
               >
                 <SelectTrigger className="h-12">
@@ -395,6 +408,27 @@ export function EmergencySOSForm({ onSuccess }: { onSuccess?: () => void }) {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* GPS Accuracy indicator */}
+            {gpsLocation && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 text-sm">
+                <Signal className={`w-4 h-4 ${getAccuracyInfo(gpsLocation.accuracy).color}`} />
+                <span className={`font-medium ${getAccuracyInfo(gpsLocation.accuracy).color}`}>
+                  {getAccuracyInfo(gpsLocation.accuracy).label}
+                </span>
+                <span className="text-muted-foreground">
+                  — {getAccuracyInfo(gpsLocation.accuracy).description}
+                </span>
+              </div>
+            )}
+
+            {/* GPS Error with device-specific help */}
+            {geolocation.error && !useGPS && (
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <p className="text-xs text-destructive">{geolocation.error}</p>
+              </div>
+            )}
+
             {selectedDistrict && tehsils && tehsils.length > 0 && (
               <Select value={selectedTehsil} onValueChange={setSelectedTehsil}>
                 <SelectTrigger className="h-12">
@@ -408,6 +442,23 @@ export function EmergencySOSForm({ onSuccess }: { onSuccess?: () => void }) {
                   ))}
                 </SelectContent>
               </Select>
+            )}
+
+            {/* Mini Map - shows after GPS capture */}
+            {showMap && gpsLocation && (
+              <Suspense fallback={
+                <div className="h-[200px] rounded-xl bg-muted/30 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              }>
+                <LocationMap
+                  userPosition={gpsLocation}
+                  height="200px"
+                  zoom={14}
+                  interactive={false}
+                  showAccuracyCircle={true}
+                />
+              </Suspense>
             )}
           </div>
 
